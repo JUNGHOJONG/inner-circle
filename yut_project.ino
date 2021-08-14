@@ -106,13 +106,12 @@ void loop()
   if (digitalRead(button) == 0) {
     if (flag == 0) {
       yutCount = random(1, 3);
-      Serial.print("yutCount: ");
-      Serial.println(yutCount);
+      printYutCount(yutCount);
       int rootNumber = getRootNumber(); // root 결정
       currentPosition = movePosition(yutCount, rootNumber);
       updateRootCheck();
       flag = 1;
-      Serial.print("currentPosition: ");
+      Serial.print("현재위치: ");
       Serial.println(currentPosition);
     }
   } else {
@@ -137,6 +136,20 @@ void BUTTON() {
   }
 }
 */
+
+void printYutCount(int yutCount) {
+  if (yutCount == 1) {
+    Serial.println("[도]");
+  } else if (yutCount == 2) {
+    Serial.println("[개]");
+  } else if (yutCount == 3) {
+    Serial.println("[걸]");
+  } else if (yutCount == 4) {
+    Serial.println("[윷]");
+  } else {
+    Serial.println("[모]");
+  } 
+}
 
 int getRootNumber() {
   if (!zeroPin_rootCheck && twoPin_rootCheck && fourPin_rootCheck) { // 2 root

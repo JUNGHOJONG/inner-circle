@@ -7,6 +7,8 @@
 //and the MP3 Shield Library
 #include <SFEMP3Shield.h>
 
+#include <Wire.h>
+
 /**
  * \brief Object instancing the SdFat library.
  *
@@ -59,6 +61,10 @@ void setup() {
   buffer_pos = 0; // start the command string at zero length.
 
   pinMode(button, INPUT_PULLUP);
+
+  Wire.begin(1);
+  Wire.onReceive(receiveEvent);
+  Wire.onRequest(requestEvent);
 }
 
 int count = 0;
@@ -68,60 +74,7 @@ int bitStage = 0;
 int themeOfSong = 0;
 
 void loop() {
-  MP3player.available();
-  boolean bitReset = false;
-
-
-  String command = Serial.readStringUntil('\n');
-
-  if (command.equals("throw") && !MP3player.isPlaying()) {
-
-    // 
-    if (bitStage == 0) {
-      themeOfSong = random(1, 2); // 추 후, 테마 개수가 늘어나면 변경 가능
-    }
-
-//    int yutCount = random(1, 6);
-    int yutCount = throwYut();
-    bitStage += yutCount;
-
-    if (bitStage >= 5) {
-      bitReset = true;
-      bitStage = 5;
-    }
-
-    // mp3 file name 정하기
-    String MP3FileName = makeMP3FileName();
-    char temp[8]; // 파일이름이 길어지면 버퍼길이를 늘리면 된
-    MP3FileName.toCharArray(temp, 8); // 1-5.mp3 -> size: 8
-//    Serial.println("======");
-//    Serial.println(temp);
-//    Serial.println("======");
-    printYutCount(yutCount);
-    Serial.println(String(themeOfSong) + "(음악 종류) - " + String(bitStage) + "(비트 개수)");
-    MP3player.playMP3(temp); // sceneNumber(yutStack 이 6 이상이 될때까지 유) - musicNumber(yutStack)
-//    Serial.println("PUSHED BUTTON");
-
-    // bitStage 가 6 이상일 때, 0으로 초기화하는 작
-    if (bitReset) {
-      bitStage = 0;
-    }
-  }
-}
-
-int throwYut() {
-  int yutCount = random(1, 101);
-  if (yutCount >= 1 && yutCount <= 15) {
-    return 1; // 도(15%)
-  } else if (yutCount >= 16 && yutCount <= 50) {
-    return 2; // 개(35%)
-  } else if (yutCount >= 51 && yutCount <= 85) {
-    return 3; // 걸(35%)
-  } else if (yutCount >= 86 && yutCount <= 97) {
-    return 4; // 윷(12%)
-  } else {
-    return 5; // 모(3%)
-  }
+  
 }
 
 void printYutCount(int yutCount) {
@@ -142,4 +95,44 @@ void printYutCount(int yutCount) {
 String makeMP3FileName() {
   // 숫자 + 문자 + 숫자 -> 1 + - + 5
   return String(themeOfSong) + "-" + String(bitStage) + ".mp3";
+}
+
+void receiveEvent() {
+  MP3player.available();
+  boolean bitReset = false;
+
+  if (Wire.available() && !MP3player.isPlaying()) {
+
+    if (bitStage == 0) {
+      themeOfSong = random(1, 2); // 추 후, 테마 개수가 늘어나면 변경 가능
+    }
+
+    int yutCount = Wire.read();
+    Serial.print("yutCount: ");
+    Serial.println(yutCount);
+    bitStage += yutCount;
+
+    if (bitStage >= 5) {
+      bitReset = true;
+      bitStage = 5;
+    }
+
+    // mp3 file name 정하기
+    String MP3FileName = makeMP3FileName();
+    char temp[8]; // 파일이름이 길어지면 버퍼길이를 늘리면 된
+    MP3FileName.toCharArray(temp, 8); // 1-5.mp3 -> size: 8
+
+    printYutCount(yutCount);
+    Serial.println(String(themeOfSong) + "(음악 종류) - " + String(bitStage) + "(비트 개수)");
+    MP3player.playMP3(temp); // sceneNumber(yutStack 이 6 이상이 될때까지 유) - musicNumber(yutStack)
+
+    // bitStage 가 6 이상일 때, 0으로 초기화하는 작
+    if (bitReset) {
+      bitStage = 0;
+    }
+  }
+}
+
+void requestEvent() {
+  Wire.write(MP3player.isPlaying());
 }

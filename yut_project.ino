@@ -1,12 +1,12 @@
 #include <Arduino.h>
 #include <Streaming.h>
 #include <Vector.h>
+#include <Wire.h>
 
-const long BAUD = 230400;
+const long BAUD = 115200; // before -> 230400
 const int ROOT_COUNT = 4;
 const int ROOT_LENGTH = 8;
 
-int Elements[9][5];
 int root[ROOT_COUNT + 1][ROOT_LENGTH];
 int currentPosition = 0;
 int movementCount = 0;
@@ -16,51 +16,28 @@ boolean zeroPin_rootCheck = false;
 boolean twoPin_rootCheck = false;
 boolean fourPin_rootCheck = false;
 
-int button = 9;
+int button = 14;
 int flag = 0;
 int count = 0; // 이번에 누른 카운
 int excount = 1; // 방금 전까지 누적된 카운트
 
+int isPlaying = 0;
+
 void setup()
 {
   Serial.begin(BAUD);
+  Wire.begin();
   while (!Serial)
   {
   // wait for serial port to connect.
   }
-  initYutBoard();
-  printBoard();
   initRoot();
   currentPosition = 8; // 원점
 
   pinMode(button, INPUT_PULLUP);
   for (int i=0; i<=ROOT_LENGTH; i++) {
-    pinMode(i, OUTPUT);
+    pinMode(i + 2, OUTPUT); // 0 - 8 ==> 2 - 10 번 핀으로 변경
   }
-}
-
-void printBoard() {
-  for (int i=0; i<9; i++) {
-    for (int j=0; j<5; j++) {
-          Serial.print(Elements[i][j]);
-      }  
-      Serial.println();
-  }
-}
-
-void initYutBoard() {
-  Elements[0][0] = 4; // 0번 위치, distance = 4
-  Elements[1][0] = 3;
-  Elements[2][0] = 2;
-  Elements[3][0] = 5;
-  Elements[4][0] = 3; // 4번 위치, distance = 3, 5 -> 0을 초과하는 대상이 2
-  Elements[4][1] = 5;
-  Elements[5][0] = 1;
-  Elements[6][0] = 6;
-  Elements[7][0] = 7;
-  Elements[8][0] = 0; // 8번 위치, distance = 0, 4, 8개 -> 0을 초과하는 대상이 3개
-  Elements[8][1] = 4;
-  Elements[8][2] = 8;
 }
 
 void initRoot() {
@@ -101,11 +78,20 @@ void initRoot() {
 */
 void loop()
 {
+  // 마스터가 슬레이브에게 데이터 달라고 요청
+  Wire.requestFrom(1, 1);
+
+  // 슬레이브에서 전달받은 데이터
+  isPlaying = Wire.read();
+
+  // 마스터가 슬레이브에게 데이터 전달(시작)
+  Wire.beginTransmission(1);
+
   int yutCount = 0; // 도, 개, 걸, 윷, 모
 
-  if (digitalRead(button) == 0) {
+  if (digitalRead(button) == 0 && isPlaying == 0) { // 음악이 재생 되는 동안에는 작동되면 안된다
     if (flag == 0) {
-      yutCount = random(1, 3);
+      yutCount = throwYut();
       printYutCount(yutCount);
       int rootNumber = getRootNumber(); // root 결정
       currentPosition = movePosition(yutCount, rootNumber);
@@ -113,6 +99,12 @@ void loop()
       flag = 1;
       Serial.print("현재위치: ");
       Serial.println(currentPosition);
+
+      // 윷 카운트 버퍼에 넣어 전달(마스터 -> 슬레이브)
+      Wire.write(yutCount);
+
+      // 마스터가 슬레이브에게 데이터 전달(끝)
+      Wire.endTransmission();
     }
   } else {
     flag = 0;
@@ -122,20 +114,20 @@ void loop()
   turnOnLedOfCurrentPosition();
 }
 
-/*
-void BUTTON() {
-  if (digitalRead(button) == LOW) {
-    if (flag == 0) {
-      flag = 1;
-      count++;
-      Serial.println("PUSHED=============");
-    }
+int throwYut() {
+  int yutCount = random(1, 101);
+  if (yutCount >= 1 && yutCount <= 15) {
+    return 1; // 도(15%)
+  } else if (yutCount >= 16 && yutCount <= 50) {
+    return 2; // 개(35%)
+  } else if (yutCount >= 51 && yutCount <= 85) {
+    return 3; // 걸(35%)
+  } else if (yutCount >= 86 && yutCount <= 97) {
+    return 4; // 윷(12%)
   } else {
-    flag = 0;
-    Serial.println("NO PUSHED=============");
+    return 5; // 모(3%)
   }
 }
-*/
 
 void printYutCount(int yutCount) {
   if (yutCount == 1) {
@@ -211,9 +203,9 @@ void updateRootCheck() {
 void turnOnLedOfCurrentPosition() {
   for (int i=0; i<=ROOT_LENGTH; i++) {
     if (currentPosition == i) {
-      digitalWrite(i, HIGH);
+      digitalWrite(i + 2, HIGH); // 0 - 8 ==> 2 - 10 번 핀으로 변경
     } else {
-      digitalWrite(i, LOW);   
+      digitalWrite(i + 2, LOW);   
     }
   }  
 }

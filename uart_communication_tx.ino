@@ -2,7 +2,7 @@ char message = 'A';
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("UART");
+  Serial.println("Start Send");
 }
 
 void loop() {

@@ -23,6 +23,11 @@ int excount = 1; // 방금 전까지 누적된 카운트
 
 int isPlaying = 0;
 
+void(* resetFunc) (void) = 0; // reset 함수 선언
+unsigned long beforeTime;
+unsigned long currentTime;
+int resetTime = 30 * 1000; // 30
+
 void setup()
 {
   Serial.begin(BAUD);
@@ -78,6 +83,8 @@ void initRoot() {
 */
 void loop()
 {
+  currentTime = millis();
+  
   // 마스터가 슬레이브에게 데이터 달라고 요청
   Wire.requestFrom(1, 1);
 
@@ -105,6 +112,7 @@ void loop()
 
       // 마스터가 슬레이브에게 데이터 전달(끝)
       Wire.endTransmission();
+      beforeTime = currentTime;
     }
   } else {
     flag = 0;
@@ -112,6 +120,13 @@ void loop()
 
   // 현재 핀에 해당하는 LED에 불을킨다(0 - 8번 핀 사용한)
   turnOnLedOfCurrentPosition();
+
+  if (currentTime - beforeTime > resetTime) {
+//    Wire.beginTransmission(1);
+//    Wire.write(0);
+//    Wire.endTransmission();
+    resetFunc(); // 아무 동작없이 30초가 지나면 리셋
+  }
 }
 
 int throwYut() {
